@@ -103,7 +103,7 @@ const notFound = () =>
 const escapeRegex = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** Server-side line-item maths: the client never gets to state an amount. */
-function priceLineItems(lineItems: CreateOrderInput["lineItems"]) {
+export function priceLineItems(lineItems: CreateOrderInput["lineItems"]) {
   const priced = lineItems.map((l) => ({
     description: l.description,
     quantity: l.quantity,
