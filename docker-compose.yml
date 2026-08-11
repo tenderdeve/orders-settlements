@@ -17,7 +17,7 @@ services:
     build: { context: ., dockerfile: Dockerfile }
     ports: ["3000:3000"]
     environment:
-      MONGODB_URI: mongodb://mongo:27017/orders
+      MONGODB_URI: mongodb://mongo:27017/orders_db
       AUTH_SECRET: dev-secret-not-for-production
     depends_on:
       mongo: { condition: service_healthy }
