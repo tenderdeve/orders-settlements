@@ -1,12 +1,12 @@
 # ---- deps: install once, cached on the lockfile alone ----
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 RUN corepack enable pnpm
 WORKDIR /app
 COPY package.json pnpm-lock.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
 
 # ---- build ----
-FROM node:22-alpine AS build
+FROM node:24-alpine AS build
 RUN corepack enable pnpm
 WORKDIR /app
 ENV DOCKER_BUILD=1
@@ -15,7 +15,7 @@ COPY . .
 RUN pnpm build
 
 # ---- run: standalone output only, no node_modules, non-root ----
-FROM node:22-alpine AS run
+FROM node:24-alpine AS run
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
