@@ -80,12 +80,22 @@ export const listOrdersQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-export const exportQuerySchema = z.object({
-  from: dateOnly,
-  to: dateOnly,
-  status: z.enum(ORDER_STATUSES).optional(),
-  q: z.string().trim().max(200).optional(),
-});
+/**
+ * `from` and `to` bound `dueDate`, inclusive. Both are optional: the dashboard's
+ * Export button should work without first forcing the user to pick a range, and
+ * omitting them simply exports everything the current filters match.
+ */
+export const exportQuerySchema = z
+  .object({
+    from: dateOnly.optional(),
+    to: dateOnly.optional(),
+    status: z.enum(ORDER_STATUSES).optional(),
+    q: z.string().trim().max(200).optional(),
+  })
+  .refine((o) => !o.from || !o.to || o.from <= o.to, {
+    path: ["to"],
+    message: "The end of the range must not be before the start",
+  });
 
 /**
  * `searchParams.get()` returns null for absent keys and `z.coerce.number()` turns
