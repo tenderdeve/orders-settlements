@@ -11,6 +11,17 @@ import { listOrdersQuerySchema } from "@/lib/validation";
 
 type SP = Record<string, string | string[] | undefined>;
 
+/** The export endpoint takes `from`/`to`, the dashboard uses `dueFrom`/`dueTo`. */
+function exportQuery(params: Record<string, string>): string {
+  const p = new URLSearchParams();
+  if (params.status) p.set("status", params.status);
+  if (params.q) p.set("q", params.q);
+  if (params.dueFrom) p.set("from", params.dueFrom);
+  if (params.dueTo) p.set("to", params.dueTo);
+  const qs = p.toString();
+  return qs ? `?${qs}` : "";
+}
+
 export default async function Dashboard({ searchParams }: { searchParams: Promise<SP> }) {
   const user = await getPageUser();
   if (!user) redirect("/login");
@@ -37,9 +48,15 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       <main className="mx-auto max-w-6xl space-y-5 px-6 py-6">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-slate-900">Orders</h1>
-          <Link href="/orders/new">
-            <Button>+ New order</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {/* Carries the active filters, so you export what you are looking at. */}
+            <a href={`/api/orders/export${exportQuery(params)}`} download>
+              <Button variant="secondary">Export CSV</Button>
+            </a>
+            <Link href="/orders/new">
+              <Button>+ New order</Button>
+            </Link>
+          </div>
         </div>
 
         <SummaryTiles summary={result.summary} />
