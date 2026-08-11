@@ -384,7 +384,11 @@ export async function updateOrder(
     .select("totalCents paidCents dueDate")
     .lean();
 
-  const updated = await Order.findOneAndUpdate(filter, { $set: set }, { new: true }).lean();
+  const updated = await Order.findOneAndUpdate(
+    filter,
+    { $set: set },
+    { returnDocument: "after" },
+  ).lean();
   if (!updated) throw await lockRejection(userId, id, "lineItems");
 
   const raw = updated as unknown as RawFullOrder;
