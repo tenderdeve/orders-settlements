@@ -340,6 +340,16 @@ export async function getOrder(userId: string, id: string): Promise<OrderDTO> {
   return toOrderDTO(order as unknown as RawFullOrder, activity);
 }
 
+export async function listPayments(userId: string, id: string): Promise<PaymentDTO[]> {
+  await db();
+  assertObjectId(id);
+  const o = await Order.findOne({ _id: id, userId }).select("payments").lean();
+  if (!o) throw notFound();
+  return [...(o.payments as unknown as RawFullOrder["payments"])]
+    .sort((a, b) => b.paidOn.getTime() - a.paidOn.getTime() || +b.createdAt - +a.createdAt)
+    .map((p) => toPaymentDTO(p, id));
+}
+
 export async function updateOrder(
   userId: string,
   id: string,
