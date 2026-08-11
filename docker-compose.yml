@@ -1,0 +1,25 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports: ["27017:27017"]
+    volumes: ["mongodata:/data/db"]
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand({ping:1})"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Production-parity check only: `pnpm docker:up`.
+  # Run db:migrate / db:seed from the host first — the runtime image has no scripts.
+  app:
+    profiles: ["app"]
+    build: { context: ., dockerfile: Dockerfile }
+    ports: ["3000:3000"]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/orders
+      AUTH_SECRET: dev-secret-not-for-production
+    depends_on:
+      mongo: { condition: service_healthy }
+
+volumes: { mongodata: }
