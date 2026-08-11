@@ -71,8 +71,9 @@ export async function recordPayment(
         },
       },
     ],
-    // Mongoose 9 requires opting in to array-form (aggregation pipeline) updates.
-    { new: true, updatePipeline: true },
+    // Mongoose 9 requires opting in to array-form (aggregation pipeline) updates,
+    // and has deprecated `new: true` in favour of returnDocument.
+    { returnDocument: "after", updatePipeline: true },
   ).lean();
 
   if (!updated) throw await rejection(userId, orderId, amt);
