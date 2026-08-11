@@ -7,7 +7,12 @@ import { db } from "./db";
 import { parseDateOnly, toDateOnly, todayUTC } from "./dates";
 import { ApiError } from "./http";
 import { deriveStatus, statusFilter, type OrderStatus } from "./status";
-import type { CreateOrderInput, ListOrdersQuery, UpdateOrderInput } from "./validation";
+import type {
+  CreateOrderInput,
+  ExportQuery,
+  ListOrdersQuery,
+  UpdateOrderInput,
+} from "./validation";
 
 // ── DTOs ────────────────────────────────────────────────────────────────────
 // status is computed at serialisation time and never stored; dates cross the
@@ -319,6 +324,50 @@ export async function listOrders(userId: string, q: ListOrdersQuery): Promise<Or
       byStatus: { pending, partially_paid, paid, overdue },
     },
   };
+}
+
+/**
+ * Every matching order, unpaginated, for the CSV export. Uses the same filter
+ * shape as listOrders and the same `user_due` index; capped so one request can
+ * never try to stream an unbounded result set into memory.
+ */
+export async function exportOrders(userId: string, q: ExportQuery): Promise<OrderSummaryDTO[]> {
+  await db();
+  const today = todayUTC();
+  const filter: Record<string, unknown> = { userId: new Types.ObjectId(userId) };
+  if (q.q) filter.customerLower = { $regex: `^${escapeRegex(q.q.toLowerCase())}` };
+
+  const dueRange = {
+    ...(q.from ? { $gte: parseDateOnly(q.from) } : {}),
+    ...(q.to ? { $lte: parseDateOnly(q.to) } : {}),
+  };
+  const status = q.status ? statusFilter(q.status, today) : null;
+
+  const query =
+    Object.keys(dueRange).length && status
+      ? { ...filter, $and: [{ dueDate: dueRange }, status] }
+      : { ...filter, ...(Object.keys(dueRange).length ? { dueDate: dueRange } : {}), ...(status ?? {}) };
+
+  const rows = await Order.find(query)
+    .select({
+      number: 1,
+      customer: 1,
+      dueDate: 1,
+      totalCents: 1,
+      paidCents: 1,
+      balanceCents: 1,
+      createdAt: 1,
+      updatedAt: 1,
+      lineItemCount: { $size: "$lineItems" },
+      paymentCount: { $size: "$payments" },
+    })
+    .sort({ dueDate: 1 })
+    .limit(10_000)
+    .lean();
+
+  return (rows as unknown as (RawOrder & { lineItemCount: number; paymentCount: number })[]).map(
+    (o) => baseDTO(o, o.lineItemCount, o.paymentCount),
+  );
 }
 
 export async function getOrder(userId: string, id: string): Promise<OrderDTO> {
