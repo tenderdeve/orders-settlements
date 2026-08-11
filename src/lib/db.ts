@@ -26,3 +26,10 @@ export async function db() {
   cached.conn = await cached.promise;
   return cached.conn;
 }
+
+/**
+ * Unique-index violations surface as error code 11000. Catching this is how
+ * EMAIL_TAKEN and the idempotency reservation are detected — checking first and
+ * then inserting races, and the index is the real constraint either way.
+ */
+export const isDuplicateKey = (e: unknown) => (e as { code?: number } | null)?.code === 11000;
