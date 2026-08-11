@@ -22,6 +22,18 @@ export function parseDateOnly(s: string): Date {
 
 export const toDateOnly = (d: Date) => d.toISOString().slice(0, 10);
 
+/** "11 Aug 2026, 09:10" — display only, for audit and payment timestamps. */
+export const formatDateTime = (iso: string | Date) =>
+  new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+  }).format(typeof iso === "string" ? new Date(iso) : iso);
+
 /** "18 Aug 2026" — display only. */
 export const formatDate = (d: Date | string) =>
   new Intl.DateTimeFormat("en-GB", {
