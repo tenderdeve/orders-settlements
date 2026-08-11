@@ -1,0 +1,59 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch cancels the run still in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      mongo:
+        image: mongo:7
+        ports: ["27017:27017"]
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ping:1})'"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+
+    env:
+      # The database name must mark itself as a test database: the harness
+      # refuses to wipe anything else (tests/setup.ts).
+      MONGODB_URI: mongodb://localhost:27017/orders_test
+      AUTH_SECRET: ci-secret-not-for-production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # MUST come before setup-node, which needs pnpm present to resolve its cache.
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Fails on a drifted lockfile rather than silently resolving something new.
+      - run: pnpm install --frozen-lockfile
+
+      # Indexes and collection validators are created deliberately, never by
+      # autoIndex — so the suite runs against the real ones.
+      - run: pnpm db:migrate
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
+
+      # Proves the production build compiles before Vercel tries it.
+      - run: pnpm build
+
+      # Final assertion that nothing the tests did left the data inconsistent.
+      - run: pnpm reconcile
