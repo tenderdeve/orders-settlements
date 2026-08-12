@@ -11,6 +11,14 @@ type ApiError = {
   details?: { fieldErrors?: Record<string, string[]> };
 };
 
+/** something@something.something — the shape a typo actually breaks. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const omit = (source: Record<string, string>, key: string) => {
+  const { [key]: _dropped, ...rest } = source;
+  return rest;
+};
+
 const EyeIcon = ({ off }: { off: boolean }) => (
   <svg
     aria-hidden
@@ -61,29 +69,39 @@ export function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [confirmError, setConfirmError] = useState<string | null>(null);
-  // Shown by default while signing up: the point of the confirm field is to let
-  // someone verify what they typed before it becomes the credential they must
-  // remember. Signing in has no such need, so it stays masked. Each box carries
-  // its own control, so one can be re-hidden without hiding the other.
+  // Only the confirmation is revealed, and only while signing up: it exists so
+  // someone can check what they typed, whereas the password field itself is the
+  // one a passer-by would read. Each box owns its control, so either can flip.
   const [revealPassword, setRevealPassword] = useState(false);
   const [revealConfirm, setRevealConfirm] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
-  const fieldError = (name: string) => error?.details?.fieldErrors?.[name]?.[0];
+  /** Client-side findings win over the server's — they describe the same field. */
+  const fieldError = (name: string) =>
+    localErrors[name] ?? error?.details?.fieldErrors?.[name]?.[0];
+
+  const clearError = (name: string) =>
+    setLocalErrors((prev) => (name in prev ? omit(prev, name) : prev));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setConfirmError(null);
 
-    // Purely a client-side guard. The server has no use for a second copy of the
-    // password, so it is never sent — the API contract stays { email, password }.
-    if (mode === "signup" && password !== confirm) {
-      setConfirmError("Passwords do not match.");
-      return;
+    // Caught here so a malformed address never costs a round trip. The server
+    // re-validates regardless; this is convenience, not the security boundary.
+    const found: Record<string, string> = {};
+    if (!EMAIL_PATTERN.test(email.trim())) {
+      found.email = "Enter a valid email address, like name@example.com";
     }
+    // The server has no use for a second copy of the password, so the confirm
+    // value is never sent — the API contract stays { email, password }.
+    if (mode === "signup" && password !== confirm) {
+      found.confirmPassword = "Passwords do not match.";
+    }
+    setLocalErrors(found);
+    if (Object.keys(found).length > 0) return;
 
     setBusy(true);
     try {
@@ -122,7 +140,10 @@ export function AuthForm() {
             required
             value={email}
             invalid={!!fieldError("email")}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearError("email");
+            }}
             placeholder="you@company.com"
           />
         </Field>
@@ -145,16 +166,16 @@ export function AuthForm() {
         </Field>
 
         {mode === "signup" && (
-          <Field label="Confirm password" error={confirmError ?? undefined}>
+          <Field label="Confirm password" error={fieldError("confirmPassword")}>
             <PasswordInput
               name="confirmPassword"
               autoComplete="new-password"
               required
               value={confirm}
-              invalid={!!confirmError}
+              invalid={!!fieldError("confirmPassword")}
               onChange={(e) => {
                 setConfirm(e.target.value);
-                setConfirmError(null);
+                clearError("confirmPassword");
               }}
               reveal={revealConfirm}
               onToggle={() => setRevealConfirm(!revealConfirm)}
@@ -178,9 +199,9 @@ export function AuthForm() {
           const next = mode === "login" ? "signup" : "login";
           setMode(next);
           setError(null);
+          setLocalErrors({});
           setConfirm("");
-          setConfirmError(null);
-          setRevealPassword(next === "signup");
+          setRevealPassword(false);
           setRevealConfirm(next === "signup");
         }}
       >
