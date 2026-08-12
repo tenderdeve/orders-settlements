@@ -4,7 +4,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { LocalTime } from "@/components/LocalTime";
 import { OrderActions } from "@/components/OrderActions";
 import { PaymentForm } from "@/components/PaymentForm";
-import { ActivityLog, PaymentHistory } from "@/components/PaymentHistory";
+import { ActivityLog, PaymentHistory, SettledPanel } from "@/components/PaymentHistory";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Card } from "@/components/ui";
 import { getPageUser } from "@/lib/auth";
@@ -117,7 +117,12 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
           </Card>
         </section>
 
-        <PaymentForm orderId={order.id} balanceCents={order.balanceCents} />
+        {/* payments[] is sorted newest first, so [0] is the one that settled it. */}
+        {order.balanceCents === 0 ? (
+          <SettledPanel totalCents={order.totalCents} settledOn={order.payments[0]?.date} />
+        ) : (
+          <PaymentForm orderId={order.id} balanceCents={order.balanceCents} />
+        )}
         <PaymentHistory payments={order.payments} />
         <ActivityLog activity={order.activity ?? []} />
       </main>

@@ -30,17 +30,6 @@ export function PaymentForm({ orderId, balanceCents }: { orderId: string; balanc
     setError(null);
   };
 
-  if (balanceCents === 0) {
-    return (
-      <Card className="border-emerald-200 bg-emerald-50/60 p-4">
-        <p className="text-sm font-medium text-emerald-900">Fully paid</p>
-        <p className="mt-1 text-sm text-emerald-800">
-          Nothing further is due on this order. The server rejects any additional payment.
-        </p>
-      </Card>
-    );
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);

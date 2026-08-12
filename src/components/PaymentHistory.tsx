@@ -5,6 +5,31 @@ import { statusLabel, type OrderStatus } from "@/lib/status";
 import { LocalTime } from "./LocalTime";
 import { Card } from "./ui";
 
+/**
+ * Stands in for the payment form once nothing is owed. It replaces the form
+ * rather than disabling it: the controls can never become usable again, and a
+ * settled order has a fact to report, not an absence to explain.
+ */
+export function SettledPanel({ totalCents, settledOn }: { totalCents: number; settledOn?: string }) {
+  return (
+    <Card className="flex items-center gap-3 border-emerald-200 bg-emerald-50/60 p-4">
+      <span
+        aria-hidden
+        className="flex size-7 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-sm font-semibold text-white"
+      >
+        ✓
+      </span>
+      <div>
+        <p className="text-sm font-medium text-emerald-900">Paid in full</p>
+        <p className="mt-0.5 text-sm text-emerald-800">
+          <span className="tabnum">{formatMoney(totalCents)}</span>
+          {settledOn ? ` settled on ${formatDate(settledOn)}.` : " settled."}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
 export function PaymentHistory({ payments }: { payments: PaymentDTO[] }) {
   return (
     <section>
