@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type InputHTMLAttributes } from "react";
+import { useMemo, useState, type InputHTMLAttributes } from "react";
 import { Button, Card, ErrorNote, Field, Input } from "./ui";
 
 type ApiError = {
@@ -13,11 +13,6 @@ type ApiError = {
 
 /** something@something.something — the shape a typo actually breaks. */
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-const omit = (source: Record<string, string>, key: string) => {
-  const { [key]: _dropped, ...rest } = source;
-  return rest;
-};
 
 const EyeIcon = ({ off }: { off: boolean }) => (
   <svg
@@ -75,33 +70,44 @@ export function AuthForm() {
   const [revealPassword, setRevealPassword] = useState(false);
   const [revealConfirm, setRevealConfirm] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const [localErrors, setLocalErrors] = useState<Record<string, string>>({});
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [attempted, setAttempted] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  /** Client-side findings win over the server's — they describe the same field. */
-  const fieldError = (name: string) =>
-    localErrors[name] ?? error?.details?.fieldErrors?.[name]?.[0];
+  // Recomputed on every keystroke. Nothing is stored, so a message can never
+  // linger describing a value that has since been edited.
+  const problems = useMemo(() => {
+    const found: Record<string, string> = {};
+    if (!EMAIL_PATTERN.test(email.trim())) found.email = "Invalid email format";
+    if (mode === "signup") {
+      if (password.length < 8) found.password = "Password must be at least 8 characters";
+      // The server has no use for a second copy of the password, so the confirm
+      // value is never sent — the API contract stays { email, password }.
+      else if (password !== confirm) found.confirmPassword = "Passwords do not match";
+    }
+    return found;
+  }, [email, password, confirm, mode]);
 
-  const clearError = (name: string) =>
-    setLocalErrors((prev) => (name in prev ? omit(prev, name) : prev));
+  /**
+   * Held back until the field has been left once, or submit has been attempted.
+   * Validating from the first keystroke would call every half-typed address
+   * invalid; after that first blur it updates live and clears the moment it
+   * becomes valid. A client finding outranks the server's on the same field.
+   */
+  const fieldError = (name: string) =>
+    (attempted || touched[name] ? problems[name] : undefined) ??
+    error?.details?.fieldErrors?.[name]?.[0];
+
+  const markTouched = (name: string) => setTouched((prev) => ({ ...prev, [name]: true }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setAttempted(true);
 
-    // Caught here so a malformed address never costs a round trip. The server
+    // Caught here so a malformed input never costs a round trip. The server
     // re-validates regardless; this is convenience, not the security boundary.
-    const found: Record<string, string> = {};
-    if (!EMAIL_PATTERN.test(email.trim())) {
-      found.email = "Enter a valid email address, like name@example.com";
-    }
-    // The server has no use for a second copy of the password, so the confirm
-    // value is never sent — the API contract stays { email, password }.
-    if (mode === "signup" && password !== confirm) {
-      found.confirmPassword = "Passwords do not match.";
-    }
-    setLocalErrors(found);
-    if (Object.keys(found).length > 0) return;
+    if (Object.keys(problems).length > 0) return;
 
     setBusy(true);
     try {
@@ -140,10 +146,8 @@ export function AuthForm() {
             required
             value={email}
             invalid={!!fieldError("email")}
-            onChange={(e) => {
-              setEmail(e.target.value);
-              clearError("email");
-            }}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => markTouched("email")}
             placeholder="you@company.com"
           />
         </Field>
@@ -160,6 +164,7 @@ export function AuthForm() {
             value={password}
             invalid={!!fieldError("password")}
             onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => markTouched("password")}
             reveal={revealPassword}
             onToggle={() => setRevealPassword(!revealPassword)}
           />
@@ -173,10 +178,8 @@ export function AuthForm() {
               required
               value={confirm}
               invalid={!!fieldError("confirmPassword")}
-              onChange={(e) => {
-                setConfirm(e.target.value);
-                clearError("confirmPassword");
-              }}
+              onChange={(e) => setConfirm(e.target.value)}
+              onBlur={() => markTouched("confirmPassword")}
               reveal={revealConfirm}
               onToggle={() => setRevealConfirm(!revealConfirm)}
             />
@@ -199,7 +202,8 @@ export function AuthForm() {
           const next = mode === "login" ? "signup" : "login";
           setMode(next);
           setError(null);
-          setLocalErrors({});
+          setTouched({});
+          setAttempted(false);
           setConfirm("");
           setRevealPassword(false);
           setRevealConfirm(next === "signup");
