@@ -74,7 +74,7 @@ export function ActivityLog({ activity }: { activity: ActivityDTO[] }) {
           const moved = e.fromStatus && e.toStatus && e.fromStatus !== e.toStatus;
           return (
             <div key={e.id} className="flex flex-wrap items-baseline gap-x-2 px-4 py-2.5 text-sm">
-              <span className="tabnum w-48 shrink-0 text-slate-500">
+              <span className="tabnum w-56 shrink-0 whitespace-nowrap text-slate-500">
                 <LocalTime iso={e.createdAt} />
               </span>
               <span className="text-slate-700">{describe(e)}</span>
