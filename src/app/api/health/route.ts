@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { db } from "@/lib/db";
 import { handler, json } from "@/lib/http";
+import { APP_ENV } from "@/lib/log";
 
 const startedAt = Date.now();
 
@@ -21,5 +22,8 @@ export const GET = handler(async () => {
     db: "up",
     version: process.env.npm_package_version ?? "0.1.0",
     uptimeSec: Math.round((Date.now() - startedAt) / 1000),
+    // Same rule as the logs: production says nothing, so an unlabelled response
+    // is production and a labelled one is never mistaken for it.
+    ...(APP_ENV === "production" ? {} : { env: APP_ENV }),
   });
 });
