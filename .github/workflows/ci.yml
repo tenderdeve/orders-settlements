@@ -30,15 +30,18 @@ jobs:
       AUTH_SECRET: ci-secret-not-for-production
 
     steps:
-      - uses: actions/checkout@v4
+      # All three actions are on v5, the first major of each to declare the
+      # node24 runtime. The v4 line still works but runs on the deprecated
+      # node20, which the runner reports as a warning on every job.
+      - uses: actions/checkout@v5
 
       # MUST come before setup-node, which needs pnpm present to resolve its cache.
-      # Deliberately unpinned: v4 reads the version from package.json's
+      # Deliberately unpinned: the action reads the version from package.json's
       # packageManager field, and supplying both fails with "Multiple versions of
       # pnpm specified". One source of truth, and it is the one corepack uses.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
