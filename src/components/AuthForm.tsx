@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type InputHTMLAttributes } from "react";
+import { useMemo, useState, type InputHTMLAttributes } from "react";
 import { Button, Card, ErrorNote, Field, Input } from "./ui";
 
 type ApiError = {
@@ -10,6 +10,9 @@ type ApiError = {
   hint?: string;
   details?: { fieldErrors?: Record<string, string[]> };
 };
+
+/** something@something.something — the shape a typo actually breaks. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const EyeIcon = ({ off }: { off: boolean }) => (
   <svg
@@ -61,29 +64,50 @@ export function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [confirmError, setConfirmError] = useState<string | null>(null);
-  // Shown by default while signing up: the point of the confirm field is to let
-  // someone verify what they typed before it becomes the credential they must
-  // remember. Signing in has no such need, so it stays masked. Each box carries
-  // its own control, so one can be re-hidden without hiding the other.
+  // Only the confirmation is revealed, and only while signing up: it exists so
+  // someone can check what they typed, whereas the password field itself is the
+  // one a passer-by would read. Each box owns its control, so either can flip.
   const [revealPassword, setRevealPassword] = useState(false);
   const [revealConfirm, setRevealConfirm] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [attempted, setAttempted] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const fieldError = (name: string) => error?.details?.fieldErrors?.[name]?.[0];
+  // Recomputed on every keystroke. Nothing is stored, so a message can never
+  // linger describing a value that has since been edited.
+  const problems = useMemo(() => {
+    const found: Record<string, string> = {};
+    if (!EMAIL_PATTERN.test(email.trim())) found.email = "Invalid email format";
+    if (mode === "signup") {
+      if (password.length < 8) found.password = "Password must be at least 8 characters";
+      // The server has no use for a second copy of the password, so the confirm
+      // value is never sent — the API contract stays { email, password }.
+      else if (password !== confirm) found.confirmPassword = "Passwords do not match";
+    }
+    return found;
+  }, [email, password, confirm, mode]);
+
+  /**
+   * Held back until the field has been left once, or submit has been attempted.
+   * Validating from the first keystroke would call every half-typed address
+   * invalid; after that first blur it updates live and clears the moment it
+   * becomes valid. A client finding outranks the server's on the same field.
+   */
+  const fieldError = (name: string) =>
+    (attempted || touched[name] ? problems[name] : undefined) ??
+    error?.details?.fieldErrors?.[name]?.[0];
+
+  const markTouched = (name: string) => setTouched((prev) => ({ ...prev, [name]: true }));
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setConfirmError(null);
+    setAttempted(true);
 
-    // Purely a client-side guard. The server has no use for a second copy of the
-    // password, so it is never sent — the API contract stays { email, password }.
-    if (mode === "signup" && password !== confirm) {
-      setConfirmError("Passwords do not match.");
-      return;
-    }
+    // Caught here so a malformed input never costs a round trip. The server
+    // re-validates regardless; this is convenience, not the security boundary.
+    if (Object.keys(problems).length > 0) return;
 
     setBusy(true);
     try {
@@ -123,6 +147,7 @@ export function AuthForm() {
             value={email}
             invalid={!!fieldError("email")}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => markTouched("email")}
             placeholder="you@company.com"
           />
         </Field>
@@ -139,23 +164,22 @@ export function AuthForm() {
             value={password}
             invalid={!!fieldError("password")}
             onChange={(e) => setPassword(e.target.value)}
+            onBlur={() => markTouched("password")}
             reveal={revealPassword}
             onToggle={() => setRevealPassword(!revealPassword)}
           />
         </Field>
 
         {mode === "signup" && (
-          <Field label="Confirm password" error={confirmError ?? undefined}>
+          <Field label="Confirm password" error={fieldError("confirmPassword")}>
             <PasswordInput
               name="confirmPassword"
               autoComplete="new-password"
               required
               value={confirm}
-              invalid={!!confirmError}
-              onChange={(e) => {
-                setConfirm(e.target.value);
-                setConfirmError(null);
-              }}
+              invalid={!!fieldError("confirmPassword")}
+              onChange={(e) => setConfirm(e.target.value)}
+              onBlur={() => markTouched("confirmPassword")}
               reveal={revealConfirm}
               onToggle={() => setRevealConfirm(!revealConfirm)}
             />
@@ -178,9 +202,10 @@ export function AuthForm() {
           const next = mode === "login" ? "signup" : "login";
           setMode(next);
           setError(null);
+          setTouched({});
+          setAttempted(false);
           setConfirm("");
-          setConfirmError(null);
-          setRevealPassword(next === "signup");
+          setRevealPassword(false);
           setRevealConfirm(next === "signup");
         }}
       >

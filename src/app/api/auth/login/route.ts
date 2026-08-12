@@ -18,13 +18,7 @@ export const POST = handler(async (req) => {
 
   // Same code for unknown email and wrong password, for the same reason.
   if (!user || !ok) {
-    throw new ApiError(
-      401,
-      "INVALID_CREDENTIALS",
-      "That email and password do not match an account.",
-      undefined,
-      "Check your email and password.",
-    );
+    throw new ApiError(401, "INVALID_CREDENTIALS", "Invalid credentials");
   }
 
   const id = String(user._id);
