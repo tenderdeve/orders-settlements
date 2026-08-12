@@ -137,15 +137,19 @@ export function FilterBar({
           if (target !== committed.current) commit(target);
         }}
       >
-        <div className="relative">
+        {/* The width lives here, not on the Input: Input hardcodes w-full, and a
+            w-* passed alongside it loses to stylesheet order rather than
+            overriding it, collapsing the box to its intrinsic size. */}
+        <div className="relative w-64">
           <Input
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search by customer name…"
+            placeholder="Search by customer"
             aria-label="Search by customer name"
             aria-describedby="search-status"
-            className="w-56 pr-8"
+            // Reserves the corner the pending dot occupies.
+            className="pr-8"
           />
           {isPending && (
             <span
