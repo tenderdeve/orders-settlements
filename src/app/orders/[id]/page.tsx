@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AppHeader } from "@/components/AppHeader";
+import { LocalTime } from "@/components/LocalTime";
 import { OrderActions } from "@/components/OrderActions";
 import { PaymentForm } from "@/components/PaymentForm";
 import { ActivityLog, PaymentHistory } from "@/components/PaymentHistory";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Card } from "@/components/ui";
 import { getPageUser } from "@/lib/auth";
-import { formatDate, formatDateTime } from "@/lib/dates";
+import { formatDate } from "@/lib/dates";
 import { ApiError } from "@/lib/http";
 import { formatMoney } from "@/lib/money";
 import { getOrder } from "@/lib/orders";
@@ -39,7 +40,7 @@ export default async function OrderDetail({ params }: { params: Promise<{ id: st
               <StatusBadge status={order.status} />
             </div>
             <p className="mt-1 text-sm text-slate-500">
-              Due {formatDate(order.dueDate)} · Created {formatDateTime(order.createdAt)}
+              Due {formatDate(order.dueDate)} · Created <LocalTime iso={order.createdAt} />
             </p>
           </div>
           <OrderActions orderId={order.id} locked={order.paymentCount > 0} />

@@ -22,8 +22,15 @@ export function parseDateOnly(s: string): Date {
 
 export const toDateOnly = (d: Date) => d.toISOString().slice(0, 10);
 
-/** "11 Aug 2026, 09:10" — display only, for audit and payment timestamps. */
-export const formatDateTime = (iso: string | Date) =>
+/**
+ * "11 Aug 2026, 09:10 UTC" — display only, for audit and payment timestamps.
+ *
+ * The zone defaults to UTC because the server cannot know the viewer's, and a
+ * default that varies by host would render differently on Vercel than locally.
+ * <LocalTime> passes the browser's zone once it has mounted; the label is
+ * always shown so a timestamp is never ambiguous about which zone it is in.
+ */
+export const formatDateTime = (iso: string | Date, timeZone = "UTC") =>
   new Intl.DateTimeFormat("en-GB", {
     day: "2-digit",
     month: "short",
@@ -31,7 +38,8 @@ export const formatDateTime = (iso: string | Date) =>
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "UTC",
+    timeZone,
+    timeZoneName: "short",
   }).format(typeof iso === "string" ? new Date(iso) : iso);
 
 /** "18 Aug 2026" — display only. */

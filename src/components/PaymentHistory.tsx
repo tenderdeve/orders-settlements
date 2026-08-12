@@ -1,7 +1,8 @@
-import { formatDate, formatDateTime } from "@/lib/dates";
+import { formatDate } from "@/lib/dates";
 import { formatMoney } from "@/lib/money";
 import type { ActivityDTO, PaymentDTO } from "@/lib/orders";
 import { statusLabel, type OrderStatus } from "@/lib/status";
+import { LocalTime } from "./LocalTime";
 import { Card } from "./ui";
 
 export function PaymentHistory({ payments }: { payments: PaymentDTO[] }) {
@@ -32,7 +33,7 @@ export function PaymentHistory({ payments }: { payments: PaymentDTO[] }) {
                   </td>
                   <td className="px-4 py-2.5 text-slate-600">{p.note ?? "—"}</td>
                   <td className="px-4 py-2.5 whitespace-nowrap text-slate-500">
-                    {formatDateTime(p.createdAt)}
+                    <LocalTime iso={p.createdAt} />
                   </td>
                 </tr>
               ))}
@@ -73,8 +74,8 @@ export function ActivityLog({ activity }: { activity: ActivityDTO[] }) {
           const moved = e.fromStatus && e.toStatus && e.fromStatus !== e.toStatus;
           return (
             <div key={e.id} className="flex flex-wrap items-baseline gap-x-2 px-4 py-2.5 text-sm">
-              <span className="tabnum w-40 shrink-0 text-slate-500">
-                {formatDateTime(e.createdAt)}
+              <span className="tabnum w-48 shrink-0 text-slate-500">
+                <LocalTime iso={e.createdAt} />
               </span>
               <span className="text-slate-700">{describe(e)}</span>
               {moved && (
