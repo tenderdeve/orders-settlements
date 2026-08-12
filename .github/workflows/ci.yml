@@ -33,8 +33,10 @@ jobs:
       - uses: actions/checkout@v4
 
       # MUST come before setup-node, which needs pnpm present to resolve its cache.
+      # Deliberately unpinned: v4 reads the version from package.json's
+      # packageManager field, and supplying both fails with "Multiple versions of
+      # pnpm specified". One source of truth, and it is the one corepack uses.
       - uses: pnpm/action-setup@v4
-        with: { version: 9 }
 
       - uses: actions/setup-node@v4
         with:
